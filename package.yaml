@@ -1,0 +1,26 @@
+name:                servant-oauth2-example
+version:             0.1.0.0
+homepage:            https://github.com/tweag/servant-oauth2-example#readme
+license:             BSD3
+author:              Noon van der Silk
+maintainer:          noon.vandersilk@tweag.io
+copyright:           2022 Noon van der Silk
+extra-source-files:
+  - README.md
+
+ghc-options:
+  -W
+  -Wall
+  -Werror
+
+dependencies:
+  - base >= 4.7 && < 5
+  - bytestring
+  - mtl
+  - servant
+  - text
+
+executables:
+  backend:
+    source-dirs:      src
+    main:             Main.hs
