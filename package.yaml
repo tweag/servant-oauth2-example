@@ -11,14 +11,30 @@ extra-source-files:
 ghc-options:
   -W
   -Wall
-  -Werror
+
+default-extensions:
+  - DataKinds
+  - DeriveGeneric
+  - DerivingStrategies
+  - FlexibleContexts
+  - ImportQualifiedPost
+  - NoStarIsType
+  - OverloadedStrings
+  - ScopedTypeVariables
+  - TypeApplications
+  - TypeOperators
 
 dependencies:
   - base >= 4.7 && < 5
   - bytestring
   - mtl
   - servant
+  - servant-blaze
+  - servant-server
+  - shakespeare
   - text
+  - wai
+  - warp
 
 executables:
   backend:
