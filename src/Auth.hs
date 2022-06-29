@@ -8,12 +8,12 @@ import Data.ByteString                                (ByteString)
 import Data.Text                                      (Text)
 import Network.HTTP.Types                             (Status)
 import Network.Wai                                    (Request)
-import Network.Wai.Middleware.Auth.OAuth2.Github      (mkGithubProvider)
 import Servant                                        (AuthProtect, Handler)
 import Servant.Server.Experimental.Auth               (AuthServerData, AuthHandler, mkAuthHandler)
-import qualified Network.Wai                          as Wai
-import qualified Network.Wai.Middleware.Auth          as Wai
-import qualified Network.Wai.Middleware.Auth.Provider as Wai
+import Network.Wai qualified                          as Wai
+import Network.Wai.Middleware.Auth qualified          as Wai
+import Network.Wai.Middleware.Auth.Provider qualified as Wai
+import Network.Wai.Middleware.Auth.OAuth2.Github      (mkGithubProvider)
 import Data.Text.Encoding                             (decodeUtf8)
 
 import Types

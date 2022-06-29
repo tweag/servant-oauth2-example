@@ -15,10 +15,10 @@ import Text.Hamlet                      (Html, shamlet)
 import GHC.Generics                     (Generic)
 import Web.Cookie                       (SetCookie)
 
+
 import Auth -- Everything!
 import Types -- Everything!
 
-type PageM = Handler
 
 data Api mode = Api
   { home  :: mode :- Get '[HTML] Html
@@ -27,6 +27,7 @@ data Api mode = Api
   , admin :: mode :- "admin" :> Get '[HTML] Html
   }
   deriving stock Generic
+
 
 -- | These are the routes required by the "OAuth2" workflow.
 --    -> Login -> [GitHub] -> ... <- /complete
