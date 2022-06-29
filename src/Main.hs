@@ -1,6 +1,5 @@
 {-# language QuasiQuotes     #-}
 {-# language TemplateHaskell #-}
-{-# language TypeFamilies    #-}
 
 module Main where
 
@@ -14,47 +13,56 @@ import Servant.HTML.Blaze               (HTML)
 import Servant.Server.Generic           (AsServerT, genericServeTWithContext)
 import Text.Hamlet                      (Html, shamlet)
 import GHC.Generics                     (Generic)
-import Servant.Server.Experimental.Auth (AuthServerData, AuthHandler)
-import Network.Wai                      (Request)
+import Web.Cookie                       (SetCookie)
+
+import Auth -- Everything!
+import Types -- Everything!
 
 type PageM = Handler
 
 data Api mode = Api
   { home  :: mode :- Get '[HTML] Html
   , about :: mode :- "about" :> Get '[HTML] Html
-  , auth :: mode :- "auth" :> "github" :> NamedRoutes AuthRoutes
+  , auth  :: mode :- "auth" :> "github" :> NamedRoutes OAuthRoutes
+  , admin :: mode :- "admin" :> Get '[HTML] Html
   }
   deriving stock Generic
 
-data Login = Login
+-- | These are the routes required by the "OAuth2" workflow.
+--    -> Login -> [GitHub] -> ... <- /complete
+data OAuthRoutes mode = OAuthRoutes
+  { login :: mode :- AuthProtect "login" :> "login"
+                :> UVerb 'GET '[HTML] '[ WithStatus 301 (Headers '[ Header "Location" Text ] NoContent) ]
 
-data AuthRoutes mode = AuthRoutes
-  { login :: mode :- AuthProtect "login" :> "login" :> UVerb 'GET '[HTML] '[ WithStatus 301 (Headers '[ Header "Location" Text ] NoContent) ]
+  , complete :: mode :- AuthProtect "complete" :> "complete"
+                :> UVerb 'GET '[HTML] '[ WithStatus 301 (Headers '[ Header "Location" Text, Header "Set-Cookie" SetCookie ] NoContent) ]
   }
   deriving stock Generic
-
-type instance AuthServerData (AuthProtect "login") = Login
 
 
 server :: Api (AsServerT PageM)
 server = Api
-  { home  = pure $ [shamlet| <p> Home |]
+  { home  = pure $ [shamlet| <p> Home  |]
   , about = pure $ [shamlet| <p> About |]
+  , admin = pure $ [shamlet| <p> Admin |]
   , auth  = authServer
   }
 
-authServer :: AuthRoutes (AsServerT PageM)
-authServer = AuthRoutes
-  { login = \Login -> undefined
-  }
 
-loginContext :: AuthHandler Request Login
-loginContext = undefined
+redirect location = undefined
+
+
+authServer :: OAuthRoutes (AsServerT PageM)
+authServer = OAuthRoutes
+  { login    = \(Login location) -> redirect location
+  , complete = \Complete -> undefined
+  }
 
 main :: IO ()
 main = do
   run 8083 $
     genericServeTWithContext nat server context
       where
-        context = loginContext :. EmptyContext
+        env = undefined
+        context = loginContext env :. completeContext :. EmptyContext
         nat = id

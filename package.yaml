@@ -27,6 +27,8 @@ default-extensions:
 dependencies:
   - base >= 4.7 && < 5
   - bytestring
+  - cookie
+  - http-types
   - mtl
   - servant
   - servant-blaze
@@ -34,6 +36,7 @@ dependencies:
   - shakespeare
   - text
   - wai
+  - wai-middleware-auth
   - warp
 
 executables:
