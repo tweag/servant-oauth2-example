@@ -7,18 +7,22 @@ import Data.Text                        (Text)
 import Network.Wai.Handler.Warp         (run)
 import Servant                          (Handler, type (:>), Get, Context((:.), EmptyContext)
                                         , NoContent, Header, Headers, WithStatus, UVerb, StdMethod(GET)
-                                        , AuthProtect, NamedRoutes, ServerT, Proxy(Proxy), throwError, err404)
+                                        , AuthProtect, NamedRoutes, ServerT, Proxy(Proxy), throwError
+                                        , err404, NoContent(NoContent), addHeader, respond
+                                        , WithStatus(WithStatus))
 import Servant.API.Generic              ((:-))
 import Servant.HTML.Blaze               (HTML)
 import Servant.Server                   (hoistServer)
 import Servant.Server.Generic           (AsServerT, genericServeTWithContext)
 import Text.Hamlet                      (Html, shamlet)
+import Toml                             (decodeFileExact)
 import GHC.Generics                     (Generic)
 import Web.Cookie                       (SetCookie)
 
 
 import Auth -- Everything!
 import Types -- Everything!
+import Config -- Everything!
 
 
 data Api mode = Api
@@ -30,15 +34,14 @@ data Api mode = Api
   deriving stock Generic
 
 
-
 -- | These are the routes required by the "OAuth2" workflow.
 --    -> Login -> [GitHub] -> ... <- /complete
 data OAuthRoutes mode = OAuthRoutes
   { login :: mode :- AuthProtect "login" :> "login"
-                :> UVerb 'GET '[HTML] '[ WithStatus 301 (Headers '[ Header "Location" Text ] NoContent) ]
+                :> UVerb 'GET '[HTML] '[ WithStatus 303 (Headers '[ Header "Location" Text ] NoContent) ]
 
   , complete :: mode :- AuthProtect "complete" :> "complete"
-                :> UVerb 'GET '[HTML] '[ WithStatus 301 (Headers '[ Header "Location" Text, Header "Set-Cookie" SetCookie ] NoContent) ]
+                :> UVerb 'GET '[HTML] '[ WithStatus 303 (Headers '[ Header "Location" Text, Header "Set-Cookie" SetCookie ] NoContent) ]
   }
   deriving stock Generic
 
@@ -88,7 +91,10 @@ ensureAdmin = hoistServer (Proxy @(NamedRoutes AdminRoutes)) checkAdmin
 
 homeHandler :: PageM Html
 homeHandler = do
-  pure $ [shamlet| <h3> Home  |]
+  pure $ [shamlet|
+    <h3> Home
+    <a href="/auth/github/login"> Login
+    |]
 
 
 aboutHandler :: PageM Html
@@ -110,22 +116,29 @@ adminHandler = do
   |]
 
 
-redirect location = undefined
+redirect :: Text -> Headers '[ Header "Location" Text ] NoContent
+redirect location = addHeader location NoContent
 
 
 authServer :: OAuthRoutes (AsServerT PageM)
 authServer = OAuthRoutes
-  { login    = \(Login location) -> redirect location
+  { login    = \(Login location) -> respond $ WithStatus @303 (redirect location)
   , complete = \Complete -> undefined
   }
 
 
 main :: IO ()
 main = do
+  eitherConfig <- decodeFileExact configCodec ("./configs/config.live.toml")
+  config <- either (\errors -> fail $ "unable to parse configuration: " <> show errors)
+                   pure
+                   eitherConfig
+
+  let env = Env config
+      context = loginContext env :. completeContext :. EmptyContext
+
   run 8083 $
     genericServeTWithContext nat server context
       where
-        env = undefined
-        context = loginContext env :. completeContext :. EmptyContext
         nat :: PageM a -> Handler a
         nat = getPageM'

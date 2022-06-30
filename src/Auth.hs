@@ -17,6 +17,7 @@ import Network.Wai.Middleware.Auth.OAuth2.Github      (mkGithubProvider)
 import Data.Text.Encoding                             (decodeUtf8)
 
 import Types
+import Config
 
 
 data Login = Login
@@ -58,12 +59,10 @@ loginContext env = mkAuthHandler f
   where
     f :: Request -> Handler Login
     f request = do
-      response <- runGithubAuth request (_oauthConfig env) Nothing Nothing DoLogin
+      response <- runGithubAuth request (_oauth (_config env)) Nothing Nothing DoLogin
       let headers = Wai.responseHeaders response
           Just location = lookup "Location" headers
       pure $ Login (decodeUtf8 location)
-
-
 
 
 completeContext :: AuthHandler Request Complete
