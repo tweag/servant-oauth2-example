@@ -79,7 +79,6 @@ completeContext env = mkAuthHandler f
       -- 3. Return it!
 
       let success ident = pure $ Wai.responseLBS status200 [("Success", ident)] ""
-          -- failure resultStatus x = error $ "Error: " <> show x
           failure resultStatus x = pure $ Wai.responseLBS resultStatus [("Failure", x)] ""
 
       response <- runGithubAuth request (_oauth (_config env)) (Just success) (Just failure) DoComplete
