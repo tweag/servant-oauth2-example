@@ -7,7 +7,7 @@ import Data.Text                        (Text)
 import Network.Wai.Handler.Warp         (run)
 import Servant                          (Handler, type (:>), Get, Context((:.), EmptyContext)
                                         , NoContent, Header, Headers, WithStatus, UVerb, StdMethod(GET)
-                                        , AuthProtect, NamedRoutes)
+                                        , AuthProtect, NamedRoutes, ServerT)
 import Servant.API.Generic              ((:-))
 import Servant.HTML.Blaze               (HTML)
 import Servant.Server.Generic           (AsServerT, genericServeTWithContext)
@@ -24,9 +24,10 @@ data Api mode = Api
   { home  :: mode :- Get '[HTML] Html
   , about :: mode :- "about" :> Get '[HTML] Html
   , auth  :: mode :- "auth" :> "github" :> NamedRoutes OAuthRoutes
-  , admin :: mode :- "admin" :> Get '[HTML] Html
+  , admin :: mode :- "admin" :> NamedRoutes AdminRoutes
   }
   deriving stock Generic
+
 
 
 -- | These are the routes required by the "OAuth2" workflow.
@@ -37,6 +38,12 @@ data OAuthRoutes mode = OAuthRoutes
 
   , complete :: mode :- AuthProtect "complete" :> "complete"
                 :> UVerb 'GET '[HTML] '[ WithStatus 301 (Headers '[ Header "Location" Text, Header "Set-Cookie" SetCookie ] NoContent) ]
+  }
+  deriving stock Generic
+
+
+data AdminRoutes mode = AdminRoutes
+  { adminHome :: mode :- Get '[HTML] Html
   }
   deriving stock Generic
 
@@ -53,23 +60,33 @@ server :: Api (AsServerT PageM)
 server = Api
   { home  = homeHandler
   , about = aboutHandler
-  -- Terrible! We've leaked our secrets?!
-  , admin = adminHandler
+  , admin = adminServer
   , auth  = authServer
   }
+
+
+adminServer :: ServerT (NamedRoutes AdminRoutes) PageM
+adminServer = ensureAdmin $ AdminRoutes
+  { adminHome = adminHandler
+  }
+
+
+ensureAdmin :: ServerT (NamedRoutes AdminRoutes) AdminPageM -> ServerT (NamedRoutes AdminRoutes) PageM
+ensureAdmin = undefined
 
 
 homeHandler :: PageM Html
 homeHandler = do
   pure $ [shamlet| <h3> Home  |]
 
+
 aboutHandler :: PageM Html
 aboutHandler = do
   pure $ [shamlet| <h3> About  |]
 
+
 adminHandler :: AdminPageM Html
 adminHandler = do
-  -- user <- getAdminUser
   pure $ [shamlet|
     <h3> Admin
     <hr>
