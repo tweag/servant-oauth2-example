@@ -93,6 +93,9 @@ completeContext env = mkAuthHandler f
         Nothing -> throwError err401
         Just ident -> do
           -- We're in!
-          error $ "Welcome: " <> show ident
+          cookie <- liftIO buildSessionCookie
+          pure (Complete cookie)
 
 
+buildSessionCookie :: IO SetCookie
+buildSessionCookie = undefined
