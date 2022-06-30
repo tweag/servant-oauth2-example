@@ -51,22 +51,35 @@ secretThings
 
 server :: Api (AsServerT PageM)
 server = Api
-  { home  = pure $ [shamlet| <h3> Home  |]
-  , about = pure $ [shamlet| <h3> About |]
+  { home  = homeHandler
+  , about = aboutHandler
   -- Terrible! We've leaked our secrets?!
-  , admin = pure $
-              [shamlet|
-                <h3> Admin
-                <hr>
-
-                <b> Secrets
-
-                <ul>
-                  $forall secret <- secretThings
-                    <li> #{secret}
-              |]
+  , admin = adminHandler
   , auth  = authServer
   }
+
+
+homeHandler :: PageM Html
+homeHandler = do
+  pure $ [shamlet| <h3> Home  |]
+
+aboutHandler :: PageM Html
+aboutHandler = do
+  pure $ [shamlet| <h3> About  |]
+
+adminHandler :: AdminPageM Html
+adminHandler = do
+  -- user <- getAdminUser
+  pure $ [shamlet|
+    <h3> Admin
+    <hr>
+
+    <b> Secrets
+
+    <ul>
+      $forall secret <- secretThings
+        <li> #{secret}
+  |]
 
 
 redirect location = undefined
@@ -86,4 +99,5 @@ main = do
       where
         env = undefined
         context = loginContext env :. completeContext :. EmptyContext
-        nat = id
+        nat :: PageM a -> Handler a
+        nat = getPageM'
