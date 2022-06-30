@@ -41,11 +41,30 @@ data OAuthRoutes mode = OAuthRoutes
   deriving stock Generic
 
 
+secretThings :: [Text]
+secretThings
+    = [ "secret 1"
+      , "definitely more secret than secret 1!"
+      , "mundane secret."
+      ]
+
+
 server :: Api (AsServerT PageM)
 server = Api
-  { home  = pure $ [shamlet| <p> Home  |]
-  , about = pure $ [shamlet| <p> About |]
-  , admin = pure $ [shamlet| <p> Admin |]
+  { home  = pure $ [shamlet| <h3> Home  |]
+  , about = pure $ [shamlet| <h3> About |]
+  -- Terrible! We've leaked our secrets?!
+  , admin = pure $
+              [shamlet|
+                <h3> Admin
+                <hr>
+
+                <b> Secrets
+
+                <ul>
+                  $forall secret <- secretThings
+                    <li> #{secret}
+              |]
   , auth  = authServer
   }
 
@@ -58,6 +77,7 @@ authServer = OAuthRoutes
   { login    = \(Login location) -> redirect location
   , complete = \Complete -> undefined
   }
+
 
 main :: IO ()
 main = do
