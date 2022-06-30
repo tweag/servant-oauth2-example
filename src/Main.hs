@@ -7,9 +7,10 @@ import Data.Text                        (Text)
 import Network.Wai.Handler.Warp         (run)
 import Servant                          (Handler, type (:>), Get, Context((:.), EmptyContext)
                                         , NoContent, Header, Headers, WithStatus, UVerb, StdMethod(GET)
-                                        , AuthProtect, NamedRoutes, ServerT)
+                                        , AuthProtect, NamedRoutes, ServerT, Proxy(Proxy), throwError, err404)
 import Servant.API.Generic              ((:-))
 import Servant.HTML.Blaze               (HTML)
+import Servant.Server                   (hoistServer)
 import Servant.Server.Generic           (AsServerT, genericServeTWithContext)
 import Text.Hamlet                      (Html, shamlet)
 import GHC.Generics                     (Generic)
@@ -71,8 +72,18 @@ adminServer = ensureAdmin $ AdminRoutes
   }
 
 
-ensureAdmin :: ServerT (NamedRoutes AdminRoutes) AdminPageM -> ServerT (NamedRoutes AdminRoutes) PageM
-ensureAdmin = undefined
+-- | We ensure that someone has access to (view) admin pages by providing a
+-- function that converts them from an admin to a normal user.
+ensureAdmin :: ServerT (NamedRoutes AdminRoutes) AdminPageM
+            -> ServerT (NamedRoutes AdminRoutes) PageM
+ensureAdmin = hoistServer (Proxy @(NamedRoutes AdminRoutes)) checkAdmin
+  where
+    isAdmin = True
+    checkAdmin :: AdminPageM a -> PageM a
+    checkAdmin (PageM' routes) = do
+      if isAdmin
+         then PageM' @'Anyone routes
+         else error "404" -- throwError err404
 
 
 homeHandler :: PageM Html
