@@ -78,12 +78,12 @@ ensureAdmin :: ServerT (NamedRoutes AdminRoutes) AdminPageM
             -> ServerT (NamedRoutes AdminRoutes) PageM
 ensureAdmin = hoistServer (Proxy @(NamedRoutes AdminRoutes)) checkAdmin
   where
-    isAdmin = True
+    isAdmin = False
     checkAdmin :: AdminPageM a -> PageM a
     checkAdmin (PageM' routes) = do
       if isAdmin
          then PageM' @'Anyone routes
-         else error "404" -- throwError err404
+         else throwError err404
 
 
 homeHandler :: PageM Html
