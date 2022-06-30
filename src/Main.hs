@@ -120,10 +120,17 @@ redirect :: Text -> Headers '[ Header "Location" Text ] NoContent
 redirect location = addHeader location NoContent
 
 
+redirectWithCookie :: Text
+                   -> SetCookie
+                   -> Headers '[Header "Location" Text, Header "Set-Cookie" SetCookie] NoContent
+redirectWithCookie destination cookie =
+  addHeader destination (addHeader cookie NoContent)
+
+
 authServer :: OAuthRoutes (AsServerT PageM)
 authServer = OAuthRoutes
   { login    = \(Login location) -> respond $ WithStatus @303 (redirect location)
-  , complete = \Complete -> undefined
+  , complete = \(Complete cookie) -> respond $ WithStatus @303 (redirectWithCookie "/" cookie)
   }
 
 
@@ -135,7 +142,7 @@ main = do
                    eitherConfig
 
   let env = Env config
-      context = loginContext env :. completeContext :. EmptyContext
+      context = loginContext env :. completeContext env :. EmptyContext
 
   run 8083 $
     genericServeTWithContext nat server context

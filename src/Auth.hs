@@ -6,15 +6,17 @@ module Auth where
 import Control.Monad.IO.Class                         (liftIO, MonadIO)
 import Data.ByteString                                (ByteString)
 import Data.Text                                      (Text)
+import Data.Text.Encoding                             (decodeUtf8)
 import Network.HTTP.Types                             (Status)
+import Network.HTTP.Types                             (status200)
 import Network.Wai                                    (Request)
-import Servant                                        (AuthProtect, Handler)
-import Servant.Server.Experimental.Auth               (AuthServerData, AuthHandler, mkAuthHandler)
 import Network.Wai qualified                          as Wai
 import Network.Wai.Middleware.Auth qualified          as Wai
-import Network.Wai.Middleware.Auth.Provider qualified as Wai
 import Network.Wai.Middleware.Auth.OAuth2.Github      (mkGithubProvider)
-import Data.Text.Encoding                             (decodeUtf8)
+import Network.Wai.Middleware.Auth.Provider qualified as Wai
+import Servant                                        (AuthProtect, Handler, err401, throwError)
+import Servant.Server.Experimental.Auth               (AuthServerData, AuthHandler, mkAuthHandler)
+import Web.Cookie                                     (SetCookie)
 
 import Types
 import Config
@@ -25,6 +27,8 @@ data Login = Login
       }
 
 data Complete = Complete
+      { cookie :: SetCookie
+      }
 
 
 type instance AuthServerData (AuthProtect "login") = Login
@@ -65,5 +69,30 @@ loginContext env = mkAuthHandler f
       pure $ Login (decodeUtf8 location)
 
 
-completeContext :: AuthHandler Request Complete
-completeContext = undefined
+completeContext :: Env -> AuthHandler Request Complete
+completeContext env = mkAuthHandler f
+  where
+    f :: Request -> Handler Complete
+    f request = do
+      -- 1. Get the ident from Wai Github Auth Provider
+      -- 2. Make a session cookie for them.
+      -- 3. Return it!
+
+      let success ident = pure $ Wai.responseLBS status200 [("Success", ident)] ""
+          -- failure resultStatus x = error $ "Error: " <> show x
+          failure resultStatus x = pure $ Wai.responseLBS resultStatus [("Failure", x)] ""
+
+      response <- runGithubAuth request (_oauth (_config env)) (Just success) (Just failure) DoComplete
+
+      -- Know: If the headers of response contain 'Success', then we're logged
+      -- in.
+
+      let headers = Wai.responseHeaders response
+
+      case lookup "Success" headers of
+        Nothing -> throwError err401
+        Just ident -> do
+          -- We're in!
+          error $ "Welcome: " <> show ident
+
+
