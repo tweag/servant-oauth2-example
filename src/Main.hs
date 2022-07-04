@@ -3,11 +3,14 @@
 
 module Main where
 
+import Control.Monad.Reader             (ask)
+import Data.Coerce                      (coerce)
 import Data.Text                        (Text)
-import Control.Monad.Reader             (runReaderT)
 import Network.Wai.Handler.Warp         (run)
 import Servant                          (Handler, type (:>), Get, Context(EmptyContext)
-                                        , NamedRoutes, ServerT)
+                                        , NamedRoutes, ServerT, Proxy(Proxy), hoistServer
+                                        , throwError, err404
+                                        )
 import Servant.API.Generic              ((:-))
 import Servant.HTML.Blaze               (HTML)
 import Servant.Server.Generic           (AsServerT, genericServeTWithContext)
@@ -47,9 +50,26 @@ server = Api
 
 
 adminServer :: ServerT (NamedRoutes AdminRoutes) PageM
-adminServer = AdminRoutes
+adminServer = ensureAdmin $ AdminRoutes
   { adminHome = adminHandler
   }
+
+
+ensureAdmin :: ServerT (NamedRoutes AdminRoutes) AdminPageM
+            -> ServerT (NamedRoutes AdminRoutes) PageM
+ensureAdmin = hoistServer (Proxy @(NamedRoutes AdminRoutes)) transform
+  where
+    isAdmin :: Maybe User -> Bool
+    -- TODO: Try changing this to be `True` !
+    isAdmin _ = False
+
+    transform :: AdminPageM a -> PageM a
+    transform p = do
+      env <- ask
+      let currentUser = user =<< session env
+      if isAdmin currentUser
+         then coerce p
+         else throwError err404
 
 
 homeHandler :: PageM Html
@@ -80,7 +100,7 @@ main = do
 
   let env = initialEnv
       nat :: PageM a -> Handler a
-      nat = flip runReaderT env
+      nat = runPageM' env
 
   run 8083 $
     genericServeTWithContext nat server context
