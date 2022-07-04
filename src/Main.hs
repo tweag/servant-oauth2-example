@@ -34,10 +34,14 @@ data AllRoutes mode = AllRoutes
 
 data OAuthRoutes mode = OAuthRoutes
   { login :: mode :- AuthProtect "login" :> "login"
-                :> UVerb 'GET '[HTML] '[ WithStatus 303 (Headers '[ Header "Location" Text ] NoContent) ]
+                :> UVerb 'GET '[HTML]
+                    '[ WithStatus 303 (Headers '[ Header "Location" Text ] NoContent) ]
 
   , complete :: mode :- AuthProtect "complete" :> "complete"
-                :> UVerb 'GET '[HTML] '[ WithStatus 303 (Headers '[ Header "Location" Text, Header "Set-Cookie" SetCookie ] NoContent) ]
+                :> UVerb 'GET '[HTML]
+                    '[ WithStatus 303 (Headers '[ Header "Location" Text
+                                                , Header "Set-Cookie" SetCookie ] NoContent)
+                     ]
   }
   deriving stock Generic
 
