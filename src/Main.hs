@@ -4,7 +4,7 @@
 
 module Main where
 
-import Control.Monad.Reader             (ask)
+import Control.Monad.Reader             (ask, withReaderT)
 import Data.Coerce                      (coerce)
 import Data.Text                        (Text)
 import GHC.Generics                     (Generic)
@@ -59,7 +59,12 @@ siteServer = SiteRoutes
 
 server :: AllRoutes (AsServerT PageM)
 server = AllRoutes
-  { site = \_ -> siteServer
+  { site = \sessionWithUser ->
+      let addSession env = env { session = Just sessionWithUser }
+       in hoistServer
+            (Proxy @(NamedRoutes SiteRoutes))
+            (\(PageM' p) -> PageM' $ withReaderT addSession p)
+            siteServer
   }
 
 
