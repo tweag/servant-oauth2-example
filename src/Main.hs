@@ -1,27 +1,43 @@
 {-# language QuasiQuotes     #-}
 {-# language TemplateHaskell #-}
+{-# language TypeFamilies    #-}
 
 module Main where
 
 import Control.Monad.Reader             (ask)
 import Data.Coerce                      (coerce)
 import Data.Text                        (Text)
+import GHC.Generics                     (Generic)
+import Network.Wai                      (Request)
 import Network.Wai.Handler.Warp         (run)
 import Servant                          (Handler, type (:>), Get, Context(EmptyContext)
                                         , NamedRoutes, ServerT, Proxy(Proxy), hoistServer
-                                        , throwError, err404
+                                        , throwError, err404, AuthProtect, Context( (:.) )
                                         )
 import Servant.API.Generic              ((:-))
 import Servant.HTML.Blaze               (HTML)
+import Servant.Server.Experimental.Auth (AuthServerData, AuthHandler)
 import Servant.Server.Generic           (AsServerT, genericServeTWithContext)
 import Text.Hamlet                      (Html, shamlet)
-import GHC.Generics                     (Generic)
 
 
 import Types -- Everything!
 
 
-data Api mode = Api
+data AllRoutes mode = AllRoutes
+  { site :: mode :- AuthProtect "optional-cookie-auth" :> NamedRoutes SiteRoutes
+  }
+  deriving stock Generic
+
+
+type instance AuthServerData (AuthProtect "optional-cookie-auth") = Session 'Anyone
+
+
+authHandler :: AuthHandler Request (Session 'Anyone)
+authHandler = undefined
+
+
+data SiteRoutes mode = SiteRoutes
   { home  :: mode :- Get '[HTML] Html
   , admin :: mode :- "admin" :> NamedRoutes AdminRoutes
   }
@@ -34,18 +50,16 @@ data AdminRoutes mode = AdminRoutes
   deriving stock Generic
 
 
-secretThings :: [Text]
-secretThings
-    = [ "secret 1"
-      , "secret 2, somewhat more secret than secret 1!"
-      , "mundane secret."
-      ]
-
-
-server :: Api (AsServerT PageM)
-server = Api
+siteServer :: SiteRoutes (AsServerT PageM)
+siteServer = SiteRoutes
   { home  = homeHandler
   , admin = adminServer
+  }
+
+
+server :: AllRoutes (AsServerT PageM)
+server = AllRoutes
+  { site = \_ -> siteServer
   }
 
 
@@ -94,9 +108,17 @@ adminHandler = do
   |]
 
 
+secretThings :: [Text]
+secretThings
+    = [ "secret 1"
+      , "secret 2, somewhat more secret than secret 1!"
+      , "mundane secret."
+      ]
+
+
 main :: IO ()
 main = do
-  let context = EmptyContext
+  let context = authHandler :. EmptyContext
 
   let env = initialEnv
       nat :: PageM a -> Handler a
