@@ -39,7 +39,10 @@ executable backend
   ghc-options: -W -Wall
   build-depends:
       base >=4.7 && <5
+    , base64-bytestring
+    , binary
     , bytestring
+    , clientsession
     , cookie
     , http-types
     , mtl

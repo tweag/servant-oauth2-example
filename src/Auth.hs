@@ -4,7 +4,12 @@
 module Auth where
 
 import Control.Monad.IO.Class                         (liftIO, MonadIO)
+import Control.Monad.Reader                           (ask)
+import Data.Binary                                    (encode)
 import Data.ByteString                                (ByteString)
+import Data.ByteString qualified                      as BS
+import Data.ByteString.Base64.URL qualified           as Base64
+import Data.ByteString.Lazy qualified                 as BSL
 import Data.Text                                      (Text)
 import Data.Text.Encoding                             (decodeUtf8)
 import Network.HTTP.Types                             (Status)
@@ -16,7 +21,8 @@ import Network.Wai.Middleware.Auth.OAuth2.Github      (mkGithubProvider)
 import Network.Wai.Middleware.Auth.Provider qualified as Wai
 import Servant                                        (AuthProtect, Handler, err401, throwError)
 import Servant.Server.Experimental.Auth               (AuthServerData, AuthHandler, mkAuthHandler)
-import Web.Cookie                                     (SetCookie)
+import Web.ClientSession                              (Key, encryptIO, decrypt)
+import Web.Cookie                                     (SetCookie(..), sameSiteStrict, defaultSetCookie)
 
 import Types
 import Config
@@ -70,9 +76,9 @@ loginContext env = mkAuthHandler f
 
 
 completeContext :: Env -> AuthHandler Request Complete
-completeContext env = mkAuthHandler f
+completeContext env = mkAuthHandler (runPageM' env . f)
   where
-    f :: Request -> Handler Complete
+    f :: Request -> PageM Complete
     f request = do
       -- 1. Get the ident from Wai Github Auth Provider
       -- 2. Make a session cookie for them.
@@ -92,9 +98,32 @@ completeContext env = mkAuthHandler f
         Nothing -> throwError err401
         Just ident -> do
           -- We're in!
-          cookie <- liftIO buildSessionCookie
+          key <- _sessionKey <$> ask
+          cookie <- liftIO $ buildSessionCookie key ident
           pure (Complete cookie)
 
 
-buildSessionCookie :: IO SetCookie
-buildSessionCookie = undefined
+type SessionId = ByteString -- VERY safe
+
+
+-- | Our super cool cookie name.
+ourCookie :: BS.ByteString
+ourCookie = "todo_fancy_cookie_name"
+
+
+-- | Make a session cookie from some arbitrary value.
+buildSessionCookie :: Key -> SessionId -> IO SetCookie
+buildSessionCookie key sid = do
+  encrypted <- encryptIO key $ BSL.toStrict $ encode $ sid
+  pure $ defaultSetCookie
+    { setCookieName     = ourCookie
+    , setCookieValue    = Base64.encode encrypted
+    , setCookieMaxAge   = oneWeek
+    , setCookiePath     = Just "/"
+    , setCookieSameSite = Just sameSiteStrict
+    , setCookieHttpOnly = True
+    , setCookieSecure   = False -- Note: Depends on dev?
+    }
+    where
+      oneWeek = Just $ 3600 * 24 * 7
+

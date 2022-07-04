@@ -17,8 +17,8 @@ import Servant.Server.Generic           (AsServerT, genericServeTWithContext)
 import Text.Hamlet                      (Html, shamlet)
 import Toml                             (decodeFileExact)
 import GHC.Generics                     (Generic)
+import Web.ClientSession                (getDefaultKey)
 import Web.Cookie                       (SetCookie)
-
 
 import Auth -- Everything!
 import Types -- Everything!
@@ -141,11 +141,14 @@ main = do
                    pure
                    eitherConfig
 
-  let env = Env config
+  sessionKey   <- getDefaultKey
+
+  let env = Env config sessionKey
       context = loginContext env :. completeContext env :. EmptyContext
+
+      nat :: PageM a -> Handler a
+      nat = runPageM' env
 
   run 8083 $
     genericServeTWithContext nat server context
-      where
-        nat :: PageM a -> Handler a
-        nat = getPageM'
+
