@@ -1,6 +1,5 @@
 {-# language QuasiQuotes     #-}
 {-# language TemplateHaskell #-}
-{-# language TypeFamilies    #-}
 
 module Main where
 
@@ -8,33 +7,57 @@ import Control.Monad.Reader             (ask, withReaderT)
 import Data.Coerce                      (coerce)
 import Data.Text                        (Text)
 import GHC.Generics                     (Generic)
-import Network.Wai                      (Request)
 import Network.Wai.Handler.Warp         (run)
 import Servant                          (Handler, type (:>), Get, Context(EmptyContext)
                                         , NamedRoutes, ServerT, Proxy(Proxy), hoistServer
                                         , throwError, err404, AuthProtect, Context( (:.) )
+                                        , NoContent(NoContent), Header, Headers, WithStatus(WithStatus)
+                                        , respond, addHeader, UVerb, StdMethod(GET)
                                         )
 import Servant.API.Generic              ((:-))
 import Servant.HTML.Blaze               (HTML)
-import Servant.Server.Experimental.Auth (AuthServerData, AuthHandler)
 import Servant.Server.Generic           (AsServerT, genericServeTWithContext)
 import Text.Hamlet                      (Html, shamlet)
+import Web.Cookie                       (SetCookie)
 
 
+import Auth -- Everything!
 import Types -- Everything!
 
 
 data AllRoutes mode = AllRoutes
   { site :: mode :- AuthProtect "optional-cookie-auth" :> NamedRoutes SiteRoutes
+  , auth :: mode :- "auth" :> "github" :> NamedRoutes OAuthRoutes
   }
   deriving stock Generic
 
 
-type instance AuthServerData (AuthProtect "optional-cookie-auth") = Session 'Anyone
+data OAuthRoutes mode = OAuthRoutes
+  { login :: mode :- AuthProtect "login" :> "login"
+                :> UVerb 'GET '[HTML] '[ WithStatus 303 (Headers '[ Header "Location" Text ] NoContent) ]
+
+  , complete :: mode :- AuthProtect "complete" :> "complete"
+                :> UVerb 'GET '[HTML] '[ WithStatus 303 (Headers '[ Header "Location" Text, Header "Set-Cookie" SetCookie ] NoContent) ]
+  }
+  deriving stock Generic
 
 
-authHandler :: AuthHandler Request (Session 'Anyone)
-authHandler = undefined
+authServer :: OAuthRoutes (AsServerT PageM)
+authServer = OAuthRoutes
+  { login    = \(Login l) -> respond $ WithStatus @303 (redirect l)
+  , complete = \(Complete c) -> respond $ WithStatus @303 (redirectWithCookie "/" c)
+  }
+
+
+redirect :: Text -> Headers '[ Header "Location" Text ] NoContent
+redirect l = addHeader l NoContent
+
+
+redirectWithCookie :: Text
+                   -> SetCookie
+                   -> Headers '[Header "Location" Text, Header "Set-Cookie" SetCookie] NoContent
+redirectWithCookie destination c =
+  addHeader destination (addHeader c NoContent)
 
 
 data SiteRoutes mode = SiteRoutes
@@ -65,6 +88,7 @@ server = AllRoutes
             (Proxy @(NamedRoutes SiteRoutes))
             (\(PageM' p) -> PageM' $ withReaderT addSession p)
             siteServer
+  , auth = authServer
   }
 
 
@@ -123,7 +147,7 @@ secretThings
 
 main :: IO ()
 main = do
-  let context = authHandler :. EmptyContext
+  let context = loginHandler :. completeHandler :. authHandler :. EmptyContext
 
   let env = initialEnv
       nat :: PageM a -> Handler a

@@ -9,6 +9,8 @@ import Control.Monad.IO.Class  (MonadIO)
 import Control.Monad.Reader    (ReaderT, MonadReader, runReaderT)
 import Data.Text               (Text)
 import Servant                 (Handler, ServerError)
+import Web.Cookie              (SetCookie)
+
 
 data Role = Anyone | Admin
 
@@ -26,6 +28,15 @@ initialEnv = Env
 data User = User
   { email :: Text
   }
+
+
+data Login = Login
+      { location :: Text
+      }
+
+data Complete = Complete
+      { cookie :: SetCookie
+      }
 
 
 data Session (r :: Role) = Session

@@ -19,6 +19,7 @@ extra-source-files:
 executable backend
   main-is: Main.hs
   other-modules:
+      Auth
       Types
       Paths_servant_oauth2_example
   hs-source-dirs:
