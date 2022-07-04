@@ -4,6 +4,7 @@
 module Main where
 
 import Data.Text                        (Text)
+import Control.Monad.Reader             (runReaderT)
 import Network.Wai.Handler.Warp         (run)
 import Servant                          (Handler, type (:>), Get, Context(EmptyContext)
                                         , NamedRoutes, ServerT)
@@ -59,7 +60,7 @@ homeHandler = do
     |]
 
 
-adminHandler :: PageM Html
+adminHandler :: AdminPageM Html
 adminHandler = do
   pure $ [shamlet|
     <h3> Admin
@@ -77,8 +78,9 @@ main :: IO ()
 main = do
   let context = EmptyContext
 
+  let env = initialEnv
+      nat :: PageM a -> Handler a
+      nat = flip runReaderT env
+
   run 8083 $
     genericServeTWithContext nat server context
-      where
-        nat :: PageM a -> Handler a
-        nat = id
