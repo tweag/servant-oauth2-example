@@ -2,13 +2,13 @@
 
 An example of authenticating a servant API with oauth2
 
+Note that this is a branch designed specifically for the blog post.
 
-#### Todo
+### Running/Hacking
 
-- [ ] Implement "login/complete" steps
-- [ ] Implement the authhandlers
-- [ ] Demonstrate looking up a user
-- [ ] Demonstrate adding user to a session
-- [ ] Demonstrate looking for session cookies on each page
-- [x] Add admin page
-- [x] Secure admin page
+```
+stack build
+./hack
+```
+
+Then, browse the website @ <http://localhost:8083>.
