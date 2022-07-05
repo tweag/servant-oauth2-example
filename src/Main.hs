@@ -18,11 +18,13 @@ import Servant.API.Generic              ((:-))
 import Servant.HTML.Blaze               (HTML)
 import Servant.Server.Generic           (AsServerT, genericServeTWithContext)
 import Text.Hamlet                      (Html, shamlet)
+import Toml                             (decodeFileExact)
 import Web.Cookie                       (SetCookie)
 
 
 import Auth -- Everything!
 import Types -- Everything!
+import Config -- Everything!
 
 
 data AllRoutes mode = AllRoutes
@@ -151,11 +153,17 @@ secretThings
 
 main :: IO ()
 main = do
-  let context = loginHandler :. completeHandler :. authHandler :. EmptyContext
 
-  let env = initialEnv
+  eitherConfig <- decodeFileExact configCodec ("./configs/config.live.toml")
+  config' <- either (\errors -> fail $ "unable to parse configuration: " <> show errors)
+                   pure
+                   eitherConfig
+
+  let env = initialEnv config'
       nat :: PageM a -> Handler a
       nat = runPageM' env
+
+  let context = loginAuthHandler env :. completeHandler :. authHandler :. EmptyContext
 
   run 8083 $
     genericServeTWithContext nat server context

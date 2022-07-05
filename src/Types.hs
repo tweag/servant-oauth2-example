@@ -11,18 +11,22 @@ import Data.Text               (Text)
 import Servant                 (Handler, ServerError)
 import Web.Cookie              (SetCookie)
 
+import Config
+
 
 data Role = Anyone | Admin
 
 
 data Env r = Env
   { session :: Maybe (Session r)
+  , config  :: Config
   }
 
 
-initialEnv :: Env r
-initialEnv = Env
+initialEnv :: Config -> Env r
+initialEnv c = Env
   { session = Nothing
+  , config  = c
   }
 
 data User = User
