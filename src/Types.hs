@@ -4,12 +4,14 @@
 
 module Types where
 
-import Control.Monad.Except    (MonadError)
-import Control.Monad.IO.Class  (MonadIO)
-import Control.Monad.Reader    (ReaderT, MonadReader, runReaderT)
-import Data.Text               (Text)
-import Servant                 (Handler, ServerError)
-import Web.Cookie              (SetCookie)
+import Control.Monad.Except (MonadError)
+import Control.Monad.IO.Class (MonadIO)
+import Control.Monad.Reader (ReaderT, MonadReader, runReaderT)
+import Data.ByteString (ByteString)
+import Data.Text (Text)
+import Servant (Handler, ServerError)
+import Web.ClientSession (Key)
+import Web.Cookie (SetCookie)
 
 import Config
 
@@ -18,15 +20,17 @@ data Role = Anyone | Admin
 
 
 data Env r = Env
-  { session :: Maybe (Session r)
-  , config  :: Config
+  { session    :: Maybe (Session r)
+  , config     :: Config
+  , sessionKey :: Key
   }
 
 
-initialEnv :: Config -> Env r
-initialEnv c = Env
-  { session = Nothing
-  , config  = c
+initialEnv :: Config -> Key -> Env r
+initialEnv c k = Env
+  { session    = Nothing
+  , config     = c
+  , sessionKey = k
   }
 
 data User = User
@@ -62,3 +66,6 @@ runPageM' env m = runReaderT (getPageM' m) env
 
 type PageM      = PageM' 'Anyone
 type AdminPageM = PageM' 'Admin
+
+
+type SessionId = ByteString

@@ -19,6 +19,7 @@ import Servant.HTML.Blaze               (HTML)
 import Servant.Server.Generic           (AsServerT, genericServeTWithContext)
 import Text.Hamlet                      (Html, shamlet)
 import Toml                             (decodeFileExact)
+import Web.ClientSession                (getDefaultKey)
 import Web.Cookie                       (SetCookie)
 
 
@@ -158,12 +159,13 @@ main = do
   config' <- either (\errors -> fail $ "unable to parse configuration: " <> show errors)
                    pure
                    eitherConfig
+  key <- getDefaultKey
 
-  let env = initialEnv config'
+  let env = initialEnv config' key
       nat :: PageM a -> Handler a
       nat = runPageM' env
 
-  let context = loginAuthHandler env :. completeHandler :. authHandler :. EmptyContext
+  let context = loginAuthHandler env :. completeAuthHandler env :. authHandler :. EmptyContext
 
   run 8083 $
     genericServeTWithContext nat server context
