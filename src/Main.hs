@@ -165,7 +165,7 @@ main = do
       nat :: PageM a -> Handler a
       nat = runPageM' env
 
-  let context = loginAuthHandler env :. completeAuthHandler env :. authHandler :. EmptyContext
+  let context = loginAuthHandler env :. completeAuthHandler env :. authHandler env :. EmptyContext
 
   run 8083 $
     genericServeTWithContext nat server context

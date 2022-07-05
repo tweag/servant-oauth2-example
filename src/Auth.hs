@@ -34,8 +34,17 @@ type instance AuthServerData (AuthProtect "complete") = Complete
 data OAuthAction = DoLogin | DoComplete
 
 
-authHandler :: AuthHandler Request (Session 'Anyone)
-authHandler = undefined
+authHandler :: Env 'Anyone -> AuthHandler Request (Session 'Anyone)
+authHandler env = mkAuthHandler $ runPageM' env . f
+  where
+    f :: Request -> PageM (Session 'Anyone)
+    f request = do
+      key <- sessionKey <$> ask
+      pure $ getSession request key
+
+
+getSession :: Request -> Key -> Session 'Anyone
+getSession = undefined
 
 
 loginAuthHandler :: Env 'Anyone -> AuthHandler Request Login
