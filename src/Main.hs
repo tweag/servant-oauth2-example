@@ -22,7 +22,6 @@ import Toml                             (decodeFileExact)
 import Web.ClientSession                (getDefaultKey)
 import Web.Cookie                       (SetCookie)
 
-
 import Auth -- Everything!
 import Types -- Everything!
 import Config -- Everything!
