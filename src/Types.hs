@@ -36,6 +36,7 @@ initialEnv c k = Env
 data User = User
   { email :: Text
   }
+  deriving stock Show
 
 
 data Login = Login

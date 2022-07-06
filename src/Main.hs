@@ -124,19 +124,30 @@ ensureAdmin = hoistServer (Proxy @(NamedRoutes AdminRoutes)) transform
 
 homeHandler :: PageM Html
 homeHandler = do
+  env <- ask
   pure $ [shamlet|
     <h3> Home
     <a href="/admin"> Admin
+    <p>
+      $if isLoggedIn env
+          Hello #{show (getUser env)}!
+      $else
+        Consider logging in:
+        <a href="/auth/github/login"> Login
     |]
 
 
 adminHandler :: AdminPageM Html
 adminHandler = do
+  adminUser <- getAdmin <$> ask
   pure $ [shamlet|
     <h3> Admin
     <hr>
 
     <b> Secrets
+
+    <p> The person viewing these secrets is:
+      #{show adminUser}
 
     <ul>
       $forall secret <- secretThings

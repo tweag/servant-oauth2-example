@@ -5,22 +5,24 @@ module Auth where
 
 import Control.Monad.IO.Class (liftIO, MonadIO)
 import Control.Monad.Reader (ask)
-import Data.Binary (encode)
+import Data.Binary (encode, decodeOrFail)
 import Data.ByteString (ByteString)
 import Data.ByteString qualified as BS
 import Data.ByteString.Base64.URL qualified as Base64
 import Data.ByteString.Lazy qualified as BSL
+import Data.List qualified as List
+import Data.Maybe (fromJust, isJust)
 import Data.Text.Encoding (decodeUtf8)
-import Network.HTTP.Types (Status, status200)
-import Network.Wai (Request)
+import Network.HTTP.Types (Status, status200, hCookie)
+import Network.Wai (Request, requestHeaders)
 import Network.Wai qualified as Wai
 import Network.Wai.Middleware.Auth qualified as Wai
 import Network.Wai.Middleware.Auth.OAuth2.Github (mkGithubProvider)
 import Network.Wai.Middleware.Auth.Provider qualified as Wai
 import Servant (AuthProtect, throwError, err401)
 import Servant.Server.Experimental.Auth (AuthServerData, AuthHandler, mkAuthHandler)
-import Web.ClientSession (Key, encryptIO)
-import Web.Cookie (SetCookie(..), sameSiteStrict, defaultSetCookie)
+import Web.ClientSession (Key, encryptIO, decrypt)
+import Web.Cookie (SetCookie(..), parseCookies, sameSiteStrict, defaultSetCookie)
 
 import Config
 import Types
@@ -41,10 +43,6 @@ authHandler env = mkAuthHandler $ runPageM' env . f
     f request = do
       key <- sessionKey <$> ask
       pure $ getSession request key
-
-
-getSession :: Request -> Key -> Session 'Anyone
-getSession = undefined
 
 
 loginAuthHandler :: Env 'Anyone -> AuthHandler Request Login
@@ -80,7 +78,7 @@ completeAuthHandler env = mkAuthHandler (runPageM' env . f)
 
 
 ourCookie :: BS.ByteString
-ourCookie = "todo_fancy_cookie_name"
+ourCookie = "the_cookie_monad"
 
 
 buildSessionCookie :: Key -> SessionId -> IO SetCookie
@@ -97,6 +95,22 @@ buildSessionCookie key sid = do
     }
     where
       oneWeek = 3600 * 24 * 7
+
+
+getSession :: Request -> Key -> Session 'Anyone
+getSession request key = Session { user = maybeUser }
+  where
+    fromEither = either (const Nothing)
+    fromIdent :: SessionId -> User
+    fromIdent = User . decodeUtf8
+    maybeUser = fromIdent <$> maybeIdent
+    maybeIdent = do
+      cookies <- parseCookies <$> List.lookup hCookie (requestHeaders request)
+      v <- List.lookup ourCookie cookies
+      e <- fromEither Just $ Base64.decode v
+      x <- decrypt key e
+      i <- fromEither (\(_, _, c) -> Just c) $ decodeOrFail (BSL.fromStrict x)
+      pure i
 
 
 runGithubAuth :: (MonadIO m)
@@ -118,3 +132,14 @@ runGithubAuth request OAuthConfig{_secret,_id,_name} msuccess mfailure action = 
       providerUrl (Wai.ProviderUrl url) = Wai.mkRouteRender (Just appRoot) "auth" url provider
   liftIO $ Wai.handleLogin provider request suffix providerUrl success failure
 
+
+getUser :: Env a -> Maybe User
+getUser env = user =<< session env
+
+
+getAdmin :: Env 'Admin -> User
+getAdmin = fromJust . getUser
+
+
+isLoggedIn :: Env a -> Bool
+isLoggedIn = isJust . getUser
