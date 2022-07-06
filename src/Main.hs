@@ -1,3 +1,4 @@
+{-# language NamedFieldPuns  #-}
 {-# language QuasiQuotes     #-}
 {-# language TemplateHaskell #-}
 
@@ -117,8 +118,14 @@ ensureAdmin = hoistServer (Proxy @(NamedRoutes AdminRoutes)) transform
       env <- ask
       let currentUser = user =<< session env
       if isAdmin currentUser
-         then coerce p
+         then promote p
          else throwError err404
+
+    promote :: AdminPageM a -> PageM a
+    promote (PageM' p) =
+      PageM' $ flip withReaderT p $ \Env {session=Just Session{user},config,sessionKey} ->
+        let s = Session user :: Session 'Admin
+         in Env (Just s) config sessionKey :: Env 'Admin
 
 
 homeHandler :: PageM Html

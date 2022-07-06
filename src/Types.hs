@@ -1,6 +1,7 @@
 {-# language DataKinds                  #-}
-{-# language KindSignatures             #-}
 {-# language GeneralisedNewtypeDeriving #-}
+{-# language KindSignatures             #-}
+{-# language RoleAnnotations            #-}
 
 module Types where
 
@@ -48,6 +49,7 @@ data Complete = Complete
       }
 
 
+type role Session nominal
 data Session (r :: Role) = Session
   { user :: Maybe User
   }
