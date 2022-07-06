@@ -5,7 +5,6 @@
 module Main where
 
 import Control.Monad.Reader             (ask, withReaderT)
-import Data.Coerce                      (coerce)
 import Data.Text                        (Text)
 import GHC.Generics                     (Generic)
 import Network.Wai.Handler.Warp         (run)
