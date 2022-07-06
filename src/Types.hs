@@ -19,7 +19,7 @@ import Config
 data Role = Anyone | Admin
 
 
-data Env r = Env
+data Env (r :: Role) = Env
   { session    :: Maybe (Session r)
   , config     :: Config
   , sessionKey :: Key
