@@ -80,6 +80,7 @@ completeAuthHandler env = mkAuthHandler (runPageM' env . f)
 ourCookie :: BS.ByteString
 ourCookie = "the_cookie_monad"
 
+
 buildSessionCookie :: Key -> SessionId -> IO SetCookie
 buildSessionCookie key sid = do
   encrypted <- encryptIO key $ BSL.toStrict $ encode $ sid
